@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Aprendendo com as Frutas - Aplicação educacional interativa de matemática e frutas regionais para o 2º ano do Ensino Fundamental.">
+  <title>Aprendendo com as Frutas - Feira Matemática</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- CABEÇALHO DA FEIRA -->
+    <header class="market-header">
+      <div class="header-content">
+        <div class="header-title-box">
+          <span class="market-icon" aria-hidden="true">🧺</span>
+          <div>
+            <h1 class="market-title">Aprendendo com as Frutas</h1>
+            <p class="market-subtitle">Feira Regional de Matemática • 2º Ano do Ensino Fundamental</p>
+          </div>
+        </div>
+
+        <div class="header-controls">
+          <div class="level-indicator" id="level-indicator" aria-live="polite">
+            <span class="level-badge" id="level-badge">Nível 1</span>
+            <span class="level-desc" id="level-desc">Classificação e Contagem</span>
+          </div>
+
+          <div class="audio-control">
+            <button id="btn-toggle-sound" class="btn-icon" aria-label="Ativar ou desativar narração em áudio" title="Som da Professora">
+              <span id="sound-icon">🔊</span>
+              <span class="sound-label">Voz da Professora</span>
+            </button>
+          </div>
+
+          <button id="btn-restart" class="btn-secondary btn-restart" title="Reiniciar Feira">
+            <span>🔄</span> Reiniciar
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- FAIXA DE INSTRUÇÕES PEDAGÓGICAS -->
+    <section class="guidance-banner" role="region" aria-label="Instruções da Atividade">
+      <div class="guidance-content">
+        <div class="teacher-avatar" aria-hidden="true">👩‍🏫</div>
+        <div class="guidance-text-box">
+          <p id="guidance-text" class="guidance-text" aria-live="assertive">
+            Olá, pequeno feirante! Arraste as frutas da bancada para os cestos corretos. Ao retirar uma fruta, observe que o espaço na bancada fica vazio!
+          </p>
+        </div>
+        <button id="btn-repeat-instruction" class="btn-icon-subtle" title="Ouvir instrução novamente" aria-label="Ouvir instrução novamente">
+          📢 Ouvir
+        </button>
+      </div>
+    </section>
+
+    <!-- ÁREA PRINCIPAL DA FEIRA -->
+    <main class="market-main">
+      <!-- BANCADA DE FRUTAS (ORIGEM DO DRAG AND DROP & SUBTRAÇÃO VISUAL) -->
+      <section class="bench-section" aria-labelledby="bench-heading">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 id="bench-heading" class="section-title">
+              <span class="title-wood-icon">🪵</span> Bancada da Feira
+            </h2>
+            <span class="bench-subtitle">Pegue as frutas aqui e leve aos cestos de palha</span>
+          </div>
+          <div class="bench-stats" id="bench-stats" aria-live="polite">
+            Frutas na bancada: <strong id="bench-remaining-count">0</strong>
+          </div>
+        </div>
+
+        <div class="wooden-bench">
+          <div class="wood-grain-overlay" aria-hidden="true"></div>
+          <!-- Grid estático de slots da bancada -->
+          <div id="bench-grid" class="bench-grid" role="region" aria-label="Slots da Bancada da Feira">
+            <!-- Slots renderizados dinamicamente pelo app.js mantendo posições absolutas -->
+          </div>
+        </div>
+
+        <div class="bench-actions-bar">
+          <div id="feedback-message" class="feedback-message" aria-live="polite">
+            Dica: Ao arrastar a fruta, você ouvirá o nome dela com voz clara!
+          </div>
+          <button id="btn-finish-organizing" class="btn-primary btn-action-main">
+            <span>✅</span> Concluir Organização
+          </button>
+        </div>
+      </section>
+
+      <!-- CESTOS DE PALHA (DESTINO DA CLASSIFICAÇÃO) -->
+      <section class="baskets-section" aria-labelledby="baskets-heading">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 id="baskets-heading" class="section-title">
+              <span class="title-basket-icon">🧺</span> Cestos de Palha
+            </h2>
+            <span class="basket-subtitle">Organize cada espécie em seu cesto sem misturar</span>
+          </div>
+          <div class="price-table-pill" id="price-table-pill" style="display: none;">
+            <span>🏷️ Tabela de Preços Ativa</span>
+          </div>
+        </div>
+
+        <!-- Grade com os 6 cestos de palha -->
+        <div id="baskets-grid" class="baskets-grid" role="region" aria-label="Cestos de Palha das Frutas">
+          <!-- Renderizado pelo app.js (Açaí, Buriti, Manga, Cupuaçu, Jaca, Melancia) -->
+        </div>
+      </section>
+    </main>
+
+    <!-- MODAL DE QUIZ / PERGUNTAS MATEMÁTICAS -->
+    <div id="quiz-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="quiz-title" style="display: none;">
+      <div class="modal-card quiz-card">
+        <div class="quiz-card-header">
+          <div class="quiz-badge-group">
+            <span id="quiz-type-badge" class="badge-tag">Classificação</span>
+            <span id="quiz-step-indicator" class="step-tag">Pergunta 1 de 6</span>
+          </div>
+          <div class="quiz-fruit-preview" id="quiz-fruit-preview">
+            <!-- Imagem e nome da fruta em avaliação -->
+          </div>
+        </div>
+
+        <div class="quiz-body">
+          <h3 id="quiz-question-prompt" class="quiz-prompt">
+            A fruta Manga é pequena, média ou grande?
+          </h3>
+
+          <div id="quiz-options-container" class="quiz-options-grid">
+            <!-- 3 Alternativas padronizadas geradas dinamicamente -->
+          </div>
+
+          <div id="quiz-feedback-box" class="quiz-feedback-box" style="display: none;" aria-live="assertive">
+            <span id="quiz-feedback-icon" class="quiz-feedback-icon">💡</span>
+            <p id="quiz-feedback-text" class="quiz-feedback-text">Muito bem! Resposta correta.</p>
+          </div>
+        </div>
+
+        <div class="quiz-footer">
+          <button id="btn-quiz-next" class="btn-primary btn-quiz-next" style="display: none;">
+            Próxima Pergunta ➔
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE ALERTA FORMATIVO (CESTOS COM ERRO OU VAZIOS) -->
+    <div id="alert-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="alert-title" style="display: none;">
+      <div class="modal-card alert-card">
+        <div class="alert-icon" id="alert-icon">⚠️</div>
+        <h3 id="alert-title" class="alert-title">Atenção, Feirante!</h3>
+        <p id="alert-message" class="alert-message">
+          Há frutas misturadas no cesto! Lembre-se de organizar cada fruta no seu cesto correto antes de continuar.
+        </p>
+        <button id="btn-alert-close" class="btn-primary btn-alert-close">
+          Entendi, vou corrigir!
+        </button>
+      </div>
+    </div>
+
+    <!-- TELA FINAL DE CELEBRAÇÃO (TROFÉU SABER MATEMÁTICO) -->
+    <div id="celebration-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="celebration-title" style="display: none;">
+      <div class="modal-card celebration-card">
+        <div class="confetti-container" aria-hidden="true" id="confetti-box"></div>
+        <div class="trophy-wrapper">
+          <img src="assets/images/trofeu.jpg" alt="Troféu dourado Saber Matemático" class="trophy-img" id="trophy-img">
+        </div>
+        <div class="celebration-badge">🏆 Parabéns, Campeão da Feira!</div>
+        <h2 id="celebration-title" class="celebration-title">Troféu "Saber Matemático" Conquistado!</h2>
+        <p class="celebration-text">
+          Você organizou todas as frutas com perfeição nos cestos de palha, acertou todas as classificações de tamanho, contou direitinho e calculou o valor total da feira como um verdadeiro matemático!
+        </p>
+
+        <div class="celebration-summary" id="celebration-summary">
+          <!-- Estatísticas finais de frutas e valores calculados -->
+        </div>
+
+        <div class="celebration-actions">
+          <button id="btn-play-again" class="btn-primary btn-large">
+            <span>🎉</span> Jogar Novamente!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER DA APLICAÇÃO -->
+    <footer class="market-footer">
+      <p>Aprendendo com as Frutas • Educação Matemática Lúdica • 100% Client-Side e Acessível</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

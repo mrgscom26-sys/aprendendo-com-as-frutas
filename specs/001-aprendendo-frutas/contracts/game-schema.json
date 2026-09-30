@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AprendendoComAsFrutasContract",
+  "description": "Contrato de dados e estruturas de estado para a aplicação Aprendendo com as Frutas",
+  "type": "object",
+  "properties": {
+    "fruits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "category", "price", "image", "audioText", "scaleClass"],
+        "properties": {
+          "id": { "type": "string", "enum": ["acai", "buriti", "manga", "cupuacu", "jaca", "melancia"] },
+          "name": { "type": "string" },
+          "category": { "type": "string", "enum": ["pequena", "media", "grande"] },
+          "price": { "type": "number", "minimum": 1 },
+          "image": { "type": "string" },
+          "audioText": { "type": "string" },
+          "scaleClass": { "type": "string" }
+        }
+      }
+    },
+    "levels": {
+      "type": "object",
+      "required": ["level1", "level2"],
+      "properties": {
+        "level1": {
+          "type": "object",
+          "required": ["minFruitsPerType", "maxFruitsPerType", "quizTypes"],
+          "properties": {
+            "minFruitsPerType": { "type": "integer", "const": 1 },
+            "maxFruitsPerType": { "type": "integer", "const": 6 },
+            "quizTypes": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["size_class", "count"] }
+            }
+          }
+        },
+        "level2": {
+          "type": "object",
+          "required": ["minFruitsPerType", "quizTypes", "priceTable"],
+          "properties": {
+            "minFruitsPerType": { "type": "integer", "minimum": 8 },
+            "quizTypes": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["basket_price", "total_price"] }
+            },
+            "priceTable": {
+              "type": "object",
+              "required": ["acai", "buriti", "manga", "cupuacu", "jaca", "melancia"],
+              "properties": {
+                "acai": { "type": "number", "const": 1 },
+                "buriti": { "type": "number", "const": 2 },
+                "manga": { "type": "number", "const": 3 },
+                "cupuacu": { "type": "number", "const": 4 },
+                "jaca": { "type": "number", "const": 5 },
+                "melancia": { "type": "number", "const": 10 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "quizQuestion": {
+      "type": "object",
+      "required": ["id", "type", "prompt", "options", "isAnswered"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["size_class", "count", "basket_price", "total_price"] },
+        "fruitId": { "type": "string" },
+        "prompt": { "type": "string" },
+        "options": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "value", "isCorrect"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "value": { "type": ["string", "number"] },
+              "isCorrect": { "type": "boolean" }
+            }
+          }
+        },
+        "disabledOptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "isAnswered": { "type": "boolean" }
+      }
+    }
+  }
+}

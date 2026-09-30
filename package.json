@@ -1,0 +1,17 @@
+{
+  "name": "aprendendo-com-as-frutas",
+  "version": "1.0.0",
+  "description": "Aplicação educacional interativa de matemática e frutas regionais para o 2º ano do Ensino Fundamental",
+  "main": "app.js",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "educacao",
+    "matematica",
+    "ensino-fundamental",
+    "frutas-regionais",
+    "jogos-educativos"
+  ],
+  "license": "MIT"
+}
