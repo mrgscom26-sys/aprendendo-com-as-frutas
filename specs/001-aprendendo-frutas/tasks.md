@@ -18,8 +18,8 @@
 **Purpose**: Criação da infraestrutura de diretórios estáticos e banco de ativos visuais e sonoros.
 
 - [x] T001 Criar estrutura de diretórios estáticos do projeto em `assets/images/` e `assets/audio/`
-- [x] T002 [P] Gerar/adicionar ilustrações realistas e naturalistas de alta fidelidade para as 6 frutas regionais (Açaí, Buriti, Manga, Cupuaçu, Jaca e Melancia), cesto de palha artesanal e troféu "Saber Matemático" em `assets/images/`
-- [x] T003 [P] Configurar arquivos de áudio de fallback e efeitos sonoros encorajadores para acertos e erros em `assets/audio/`
+- [x] T002 [P] Gerar/adicionar ilustrações realistas e naturalistas de alta fidelidade para as 6 frutas regionais (Açaí, Buriti, Manga, Cupuaçu, Jaca e Melancia), cesto de palha artesanal e troféu "Saber Matemático" em `assets/images/` (.jpg)
+- [x] T003 [P] Configurar síntese de efeitos sonoros com Web Audio API (`AudioEngine`) e voz feminina didática (`SpeechManager`) autônomos no cliente em `app.js`
 
 ---
 

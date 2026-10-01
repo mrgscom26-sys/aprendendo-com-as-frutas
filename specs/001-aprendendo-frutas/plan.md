@@ -19,7 +19,7 @@ A implementação utiliza estritamente tecnologias web nativas (**HTML5**, **CSS
 **Primary Dependencies**: Nenhuma (Zero frameworks como React, Vue ou Angular; bibliotecas externas dispensadas para garantir autonomia total).  
 **APIs Nativas Utilizadas**:
 - **HTML5 Drag and Drop API** + suporte unificado a **Pointer Events** para dispositivos móveis táteis.
-- **Web Speech API** (`SpeechSynthesisUtterance`) para síntese de voz feminina em português (`pt-BR`), com mapeamento de fallback para arquivos `.mp3`.  
+- **Web Speech API** (`SpeechSynthesisUtterance`) para síntese de voz feminina didática em português (`pt-BR`) e **Web Audio API** para síntese dinâmica de efeitos sonoros em tempo real por osciladores, garantindo autonomia estática sem necessidade de arquivos externos de áudio.  
 **Storage**: N/A (Stateless / Memória volátil do navegador, sem banco de dados ou backend, garantindo conformidade estrita com LGPD infantil).  
 **Testing**: Roteiros de testes de aceitação descritos em [`quickstart.md`](quickstart.md) e validações manuais cobrindo cenários P1, P2 e P3.  
 **Target Platform**: Navegadores modernos (Google Chrome, Microsoft Edge, Mozilla Firefox, Safari) em ambientes desktop, tablets e smartphones.  
@@ -70,22 +70,15 @@ aprendendo-com-as-frutas/
 ├── styles.css              # Estilos responsivos, paleta de feira regional, slots de madeira, cestos de palha, animações
 ├── app.js                  # Módulo monolítico limpo: StateMachine, AudioEngine, DragDropEngine, QuizEngine, UIController
 └── assets/
-    ├── images/             # Imagens realistas de alta fidelidade
-    │   ├── acai.png        # Fruta pequena
-    │   ├── buriti.png      # Fruta pequena
-    │   ├── manga.png       # Fruta média
-    │   ├── cupuacu.png     # Fruta média
-    │   ├── jaca.png        # Fruta grande
-    │   ├── melancia.png    # Fruta grande
-    │   ├── cesto-palha.png # Cesto de palha artesanal
-    │   └── trofeu.png      # Troféu "Saber Matemático"
-    └── audio/              # Fallback de áudio didático (.mp3)
-        ├── acai.mp3
-        ├── buriti.mp3
-        ├── manga.mp3
-        ├── cupuacu.mp3
-        ├── jaca.mp3
-        └── melancia.mp3
+    └── images/             # Imagens realistas de alta fidelidade (.jpg)
+        ├── acai.jpg        # Fruta pequena
+        ├── buriti.jpg      # Fruta pequena
+        ├── manga.jpg       # Fruta média
+        ├── cupuacu.jpg     # Fruta média
+        ├── jaca.jpg        # Fruta grande
+        ├── melancia.jpg    # Fruta grande
+        ├── cesto-palha.jpg # Cesto de palha artesanal
+        └── trofeu.jpg      # Troféu "Saber Matemático"
 ```
 
 **Structure Decision**: Adoção de uma estrutura estática direta na raiz do repositório (`index.html`, `styles.css`, `app.js` e `assets/`). Essa escolha elimina necessidade de etapas de compilação ou empacotamento, permitindo que qualquer educador, estudante ou desenvolvedor execute o projeto com um simples clique ou hospede instantaneamente em serviços de páginas estáticas.

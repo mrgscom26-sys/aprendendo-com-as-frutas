@@ -67,7 +67,7 @@
       "properties": {
         "id": { "type": "string" },
         "type": { "type": "string", "enum": ["size_class", "count", "basket_price", "total_price"] },
-        "fruitId": { "type": "string" },
+        "fruitId": { "type": ["string", "null"] },
         "prompt": { "type": "string" },
         "options": {
           "type": "array",

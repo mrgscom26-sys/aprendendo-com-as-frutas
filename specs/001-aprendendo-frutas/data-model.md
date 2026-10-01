@@ -17,9 +17,8 @@ Define as propriedades fundamentais de cada espécie de fruta regional:
   name: "Açaí",            // Nome de exibição
   category: "pequena",     // "pequena" | "media" | "grande"
   price: 1,                // Preço unitário em R$ no Nível 2
-  image: "assets/images/acai.png",
+  image: "assets/images/acai.jpg",
   audioText: "Açaí",
-  audioFallback: "assets/audio/acai.mp3",
   scaleClass: "fruit-small" // "fruit-small" | "fruit-medium" | "fruit-large"
 }
 ```

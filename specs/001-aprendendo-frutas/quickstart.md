@@ -17,22 +17,15 @@ aprendendo-com-as-frutas/
 ├── styles.css            # Estilização responsiva, layout Grid/Flexbox e animações
 ├── app.js                # Lógica central: estado, drag & drop, áudio e quiz
 ├── assets/
-│   ├── images/           # Imagens realistas das 6 frutas e cesto de palha
-│   │   ├── acai.png
-│   │   ├── buriti.png
-│   │   ├── manga.png
-│   │   ├── cupuacu.png
-│   │   ├── jaca.png
-│   │   ├── melancia.png
-│   │   ├── cesto-palha.png
-│   │   └── trofeu.png
-│   └── audio/            # Áudios didáticos pré-gravados (fallback)
-│       ├── acai.mp3
-│       ├── buriti.mp3
-│       ├── manga.mp3
-│       ├── cupuacu.mp3
-│       ├── jaca.mp3
-│       └── melancia.mp3
+│   └── images/           # Imagens realistas das 6 frutas, cesto e troféu (.jpg)
+│       ├── acai.jpg
+│       ├── buriti.jpg
+│       ├── manga.jpg
+│       ├── cupuacu.jpg
+│       ├── jaca.jpg
+│       ├── melancia.jpg
+│       ├── cesto-palha.jpg
+│       └── trofeu.jpg
 └── specs/                # Documentação técnica e especificações (Spec-Kit)
 ```
 
@@ -41,7 +34,7 @@ aprendendo-com-as-frutas/
 ## 2. Como Executar Localmente
 
 ### Opção A: Execução Direta (Sem Servidor)
-Dê um duplo clique no arquivo [`index.html`](file:///c:/Users/USUARIO/Downloads/aprendendo-com-as-frutas/index.html) para abrir diretamente no seu navegador padrão (Google Chrome, Microsoft Edge, Firefox ou Safari).
+Dê um duplo clique no arquivo [`index.html`](../../index.html) para abrir diretamente no seu navegador padrão (Google Chrome, Microsoft Edge, Firefox ou Safari).
 
 ### Opção B: Servidor Estático Local (Recomendado para Áudio)
 Alguns navegadores impõem restrições de permissão para APIs de áudio (`SpeechSynthesis` ou `Audio`) em protocolo `file:///`. Para a melhor experiência:

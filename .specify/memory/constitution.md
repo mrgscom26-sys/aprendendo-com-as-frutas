@@ -1,16 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: Initial adoption -> 1.0.0
-- Core Principles defined:
-  1. Interface Lúdica, Responsiva e Naturalista (Imagens Realistas e Responsividade)
-  2. Feedback Sonoro Didático Exclusivo por Seleção (Voz Feminina por Seleção)
-  3. Mecânica de Subtração Intuitiva via Drag and Drop (Bancada para Cesto)
-  4. Progressão Pedagógica com Validação Rígida (Organização por Espécie e Quiz)
-  5. Avaliação Matemática Padronizada em 3 Alternativas (Contagem e Preço)
-  6. Arquitetura Client-Side Pura e Stateless (Hospedagem Estática)
-- Added sections:
-  - Diretrizes Pedagógicas e de Acessibilidade
-  - Governança e Ciclo de Vida
+- Version change: 1.0.0 -> 1.0.1 (PATCH)
+- Principles modified:
+  - IV. Progressão Pedagógica com Validação Rígida: clarificada a redação de 'Organização Correta por Espécie', especificando que frutas alocadas nos cestos devem ser puras e com mínimo de 1 por cesto, harmonizando com a permanência de frutas remanescentes na bancada para a mecânica de subtração concreta (Princípio III).
 - Deferred Items / TODOs: Nenhum.
 -->
 
@@ -39,7 +31,7 @@ A interação primária com os elementos de contagem DEVE adotar a mecânica de 
 
 ### IV. Progressão Pedagógica com Validação Rígida
 O avanço para o nível ou fase seguinte é ESTRITAMENTE CONDICIONADO ao sucesso total nas etapas de classificação e resolução de problemas:
-- **Organização Correta por Espécie**: Todas as frutas na bancada DEVEM ser distribuídas estritamente nos seus cestos correspondentes de acordo com a espécie. Se qualquer fruta estiver no cesto errado ou permanecer na bancada sem alocação devida, o avanço é BLOQUEADO.
+- **Organização Correta por Espécie**: Todas as frutas alocadas nos cestos DEVEM ser distribuídas estritamente de acordo com a sua espécie, com a presença de ao menos 1 unidade em cada um dos 6 cestos. Se qualquer fruta estiver no cesto errado ou permanecer em estado intermediário inválido, o avanço é BLOQUEADO. As frutas que permanecem em seus slots na bancada representam o minuendo concreto da operação de subtração (Princípio III).
 - **Exatidão Absoluta no Quiz**: É terminantemente proibido avançar se houver qualquer erro não corrigido nas respostas das perguntas do quiz (seja contagem de unidades ou cálculos de valor em dinheiro).
 - **Feedback Formativo**: Em caso de erro, o jogo não deve punir nem avançar, mas sim fornecer retorno encorajador, mantendo o estado para que a criança reflita e execute a correção até o acerto.
 - **Justificativa**: Garantir que as competências pedagógicas fundamentais sejam verdadeiramente consolidadas antes da introdução de novos graus de complexidade.
@@ -86,4 +78,4 @@ A aplicação DEVE ser concebida como uma aplicação web puramente estática (*
 - Toda especificação funcional (`spec`), arquitetura técnica (`plan`) ou implementação (`tasks`) subsequente DEVE citar e validar a aderência estrita a esta constituição antes de sua aprovação.
 
 ---
-**Version**: 1.0.0 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-09-30
+**Version**: 1.0.1 | **Ratified**: 2026-09-30 | **Last Amended**: 2026-10-01

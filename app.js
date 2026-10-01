@@ -81,6 +81,15 @@
 
   const FRUIT_IDS = ['acai', 'buriti', 'manga', 'cupuacu', 'jaca', 'melancia'];
 
+  const FRUIT_PLURALS = {
+    acai: { singular: 'açaí', plural: 'açaís' },
+    buriti: { singular: 'buriti', plural: 'buritis' },
+    manga: { singular: 'manga', plural: 'mangas' },
+    cupuacu: { singular: 'cupuaçu', plural: 'cupuaçus' },
+    jaca: { singular: 'jaca', plural: 'jacas' },
+    melancia: { singular: 'melancia', plural: 'melancias' }
+  };
+
   const GameState = {
     currentLevel: 1, // 1 ou 2
     phase: 'ORGANIZING', // 'ORGANIZING' | 'QUIZ' | 'CELEBRATION'
@@ -89,7 +98,8 @@
     quizQuestions: [],
     currentQuestionIndex: 0,
     soundEnabled: true,
-    draggedItem: null // item ativo em arraste
+    draggedItem: null, // item ativo em arraste
+    selectedFruit: null // fruta atualmente selecionada por clique ou toque
   };
 
   /* ==========================================================================
@@ -99,6 +109,7 @@
     ctx: null,
 
     initContext() {
+      if (typeof window === 'undefined') return;
       if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         this.ctx = new AudioCtx();
@@ -109,7 +120,7 @@
     },
 
     playTone(frequency, type, duration, delay = 0, gainLevel = 0.2) {
-      if (!GameState.soundEnabled) return;
+      if (typeof window === 'undefined' || !GameState.soundEnabled) return;
       try {
         this.initContext();
         if (!this.ctx) return;
@@ -189,7 +200,7 @@
     },
 
     speak(text, priority = false) {
-      if (!GameState.soundEnabled || !('speechSynthesis' in window)) return;
+      if (typeof window === 'undefined' || !GameState.soundEnabled || !('speechSynthesis' in window)) return;
 
       try {
         // Princípio II: Interrompe qualquer som prévio para evitar poluição auditiva
@@ -224,9 +235,12 @@
   const DragDropEngine = {
     touchClone: null,
     dragData: null,
+    touchDragData: null,
+    selectedFruit: null,
     touchOriginX: 0,
     touchOriginY: 0,
     hasMoved: false,
+    isPointerDragging: false,
 
     init() {
       this.bindBenchEvents();
@@ -235,51 +249,111 @@
     },
 
     bindGlobalPointerEvents() {
+      // Cancela arraste tátil flutuante se houver cancelamento de ponteiro (touch)
       window.addEventListener('pointercancel', () => {
-        if (this.dragData) {
+        if (this.isPointerDragging) {
           this.removeTouchClone();
           this.clearDragOverStates();
-          this.dragData = null;
-          GameState.draggedItem = null;
+          this.touchDragData = null;
+          this.isPointerDragging = false;
         }
       });
-      window.addEventListener('pointerup', () => {
-        if (this.dragData && this.hasMoved) {
-          this.removeTouchClone();
-          this.clearDragOverStates();
-          this.dragData = null;
-          GameState.draggedItem = null;
+
+      // Clique global no fundo desmarca fruta selecionada se clicar fora de alvos interativos
+      window.addEventListener('click', (e) => {
+        if (!e.target.closest('.fruit-item') && !e.target.closest('.basket-card') && !e.target.closest('.bench-slot')) {
+          this.clearSelectedFruit();
         }
       });
+    },
+
+    // Seleção com clique ou toque simples (Acessibilidade)
+    selectFruit(data, element) {
+      this.clearSelectedFruit();
+      this.selectedFruit = data;
+      GameState.selectedFruit = data;
+      if (element) {
+        element.classList.add('selected');
+      }
+      SpeechManager.speakFruitName(data.fruitId);
+      const fruitName = FRUIT_CATALOG[data.fruitId]?.name || data.fruitId;
+      if (data.source === 'bench') {
+        UIController.setFeedbackMessage(`Fruta ${fruitName} selecionada! Arraste ou clique no cesto para guardar.`);
+      } else {
+        UIController.setFeedbackMessage(`Fruta ${fruitName} selecionada no cesto! Arraste ou clique em um espaço vazio da bancada para devolver.`);
+      }
+    },
+
+    clearSelectedFruit() {
+      this.selectedFruit = null;
+      GameState.selectedFruit = null;
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('.fruit-item.selected, .basket-fruit-item.selected').forEach(el => el.classList.remove('selected'));
+      }
     },
 
     bindBenchEvents() {
       const benchGrid = document.getElementById('bench-grid');
 
-      // HTML5 Drag Events na Bancada
+      // Drag Over (HTML5 Drag & Drop)
       benchGrid.addEventListener('dragover', (e) => {
         const slot = e.target.closest('.bench-slot.empty');
         if (slot) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+          }
+          slot.classList.add('drag-over');
+        }
+      });
+
+      benchGrid.addEventListener('dragenter', (e) => {
+        const slot = e.target.closest('.bench-slot.empty');
+        if (slot) {
+          e.preventDefault();
           slot.classList.add('drag-over');
         }
       });
 
       benchGrid.addEventListener('dragleave', (e) => {
         const slot = e.target.closest('.bench-slot');
-        if (slot) {
+        if (slot && !slot.contains(e.relatedTarget)) {
           slot.classList.remove('drag-over');
         }
       });
 
+      // Drop na Bancada (HTML5 Drag & Drop)
       benchGrid.addEventListener('drop', (e) => {
         const slot = e.target.closest('.bench-slot.empty');
         if (slot) {
           e.preventDefault();
+          e.stopPropagation();
           slot.classList.remove('drag-over');
           const targetSlotId = slot.dataset.slotId;
-          this.handleDropOnBench(targetSlotId);
+
+          let payload = this.dragData || GameState.draggedItem || this.selectedFruit;
+          if (!payload && e.dataTransfer) {
+            try {
+              const raw = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain');
+              if (raw) payload = JSON.parse(raw);
+            } catch (_) {}
+          }
+
+          if (payload) {
+            this.handleDropOnBench(targetSlotId, payload);
+          }
+          this.clearDragOverStates();
+          this.clearSelectedFruit();
+        }
+      });
+
+      // Clique em slot vazio da bancada para devolver fruta selecionada (Click-to-Return)
+      benchGrid.addEventListener('click', (e) => {
+        const slot = e.target.closest('.bench-slot.empty');
+        if (slot && this.selectedFruit && this.selectedFruit.source === 'basket') {
+          const targetSlotId = slot.dataset.slotId;
+          this.handleDropOnBench(targetSlotId, this.selectedFruit);
+          this.clearSelectedFruit();
         }
       });
     },
@@ -287,81 +361,129 @@
     bindBasketEvents() {
       const basketsGrid = document.getElementById('baskets-grid');
 
+      // Drag Over (HTML5 Drag & Drop)
       basketsGrid.addEventListener('dragover', (e) => {
         const basketCard = e.target.closest('.basket-card');
         if (basketCard) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'move';
+          }
+          basketCard.classList.add('drag-over');
+        }
+      });
+
+      basketsGrid.addEventListener('dragenter', (e) => {
+        const basketCard = e.target.closest('.basket-card');
+        if (basketCard) {
+          e.preventDefault();
           basketCard.classList.add('drag-over');
         }
       });
 
       basketsGrid.addEventListener('dragleave', (e) => {
         const basketCard = e.target.closest('.basket-card');
-        if (basketCard) {
+        if (basketCard && !basketCard.contains(e.relatedTarget)) {
           basketCard.classList.remove('drag-over');
         }
       });
 
+      // Drop no Cesto (HTML5 Drag & Drop)
       basketsGrid.addEventListener('drop', (e) => {
         const basketCard = e.target.closest('.basket-card');
         if (basketCard) {
           e.preventDefault();
+          e.stopPropagation();
           basketCard.classList.remove('drag-over');
+
           const targetBasketFruitId = basketCard.dataset.targetFruitId;
-          this.handleDropOnBasket(targetBasketFruitId);
+
+          // Recuperação robusta de dados via memória local, dataTransfer e GameState
+          let payload = this.dragData || GameState.draggedItem || this.selectedFruit;
+          if (!payload && e.dataTransfer) {
+            try {
+              const raw = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain');
+              if (raw) payload = JSON.parse(raw);
+            } catch (_) {}
+          }
+
+          if (payload) {
+            this.handleDropOnBasket(targetBasketFruitId, payload);
+          }
+          this.clearDragOverStates();
+          this.clearSelectedFruit();
+        }
+      });
+
+      // Clique no cesto para alocar fruta selecionada (Click-to-Place)
+      basketsGrid.addEventListener('click', (e) => {
+        const basketCard = e.target.closest('.basket-card');
+        if (basketCard && this.selectedFruit) {
+          const targetBasketFruitId = basketCard.dataset.targetFruitId;
+          this.handleDropOnBasket(targetBasketFruitId, this.selectedFruit);
+          this.clearSelectedFruit();
         }
       });
     },
 
     // Configura eventos nos itens de frutas renderizados
     attachFruitEvents(fruitElement, data) {
-      // 1. Eventos nativos HTML5 Drag & Drop
+      // 1. Eventos nativos HTML5 Drag & Drop (Mouse/Desktop)
       fruitElement.setAttribute('draggable', 'true');
 
       fruitElement.addEventListener('dragstart', (e) => {
         this.dragData = data;
         GameState.draggedItem = data;
+        this.selectedFruit = data;
 
         // Princípio II: Disparo mandatório da voz feminina ao selecionar e arrastar
         SpeechManager.speakFruitName(data.fruitId);
 
         fruitElement.classList.add('dragging');
-        e.dataTransfer.setData('text/plain', JSON.stringify(data));
-        e.dataTransfer.effectAllowed = 'move';
+
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('application/json', JSON.stringify(data));
+          e.dataTransfer.setData('text/plain', JSON.stringify(data));
+          e.dataTransfer.effectAllowed = 'move';
+        }
       });
 
       fruitElement.addEventListener('dragend', () => {
         fruitElement.classList.remove('dragging');
         this.clearDragOverStates();
-        this.dragData = null;
-        GameState.draggedItem = null;
+        // Não limpa imediatamente para garantir que o evento drop processe primeiro
+        setTimeout(() => {
+          if (this.dragData === data) this.dragData = null;
+          if (GameState.draggedItem === data) GameState.draggedItem = null;
+        }, 80);
       });
 
-      // 2. Eventos Unificados de Ponteiro / Toque para Tablets e Celulares
+      // 2. Eventos de Ponteiro / Toque para Tablets e Dispositivos Móveis
       fruitElement.addEventListener('pointerdown', (e) => {
-        // Dispositivos com mouse utilizam o Drag & Drop nativo do HTML5 (dragstart)
         if (e.pointerType === 'mouse') return;
 
         this.touchOriginX = e.clientX;
         this.touchOriginY = e.clientY;
         this.hasMoved = false;
         this.dragData = data;
+        this.touchDragData = data;
         GameState.draggedItem = data;
+        this.isPointerDragging = true;
 
-        // Pronúncia imediata no toque intencional em tablets e smartphones
         SpeechManager.speakFruitName(data.fruitId);
 
-        fruitElement.setPointerCapture(e.pointerId);
+        try {
+          fruitElement.setPointerCapture(e.pointerId);
+        } catch (_) {}
       });
 
       fruitElement.addEventListener('pointermove', (e) => {
-        if (!this.dragData) return;
+        if (!this.isPointerDragging || !this.touchDragData) return;
 
         const deltaX = Math.abs(e.clientX - this.touchOriginX);
         const deltaY = Math.abs(e.clientY - this.touchOriginY);
 
-        if (deltaX > 8 || deltaY > 8) {
+        if (deltaX > 6 || deltaY > 6) {
           this.hasMoved = true;
           this.updateTouchClone(e.clientX, e.clientY, data.fruitId);
           this.checkHoverTargets(e.clientX, e.clientY);
@@ -369,27 +491,38 @@
       });
 
       fruitElement.addEventListener('pointerup', (e) => {
-        if (!this.dragData) return;
+        if (this.isPointerDragging && this.touchDragData) {
+          try {
+            fruitElement.releasePointerCapture(e.pointerId);
+          } catch (_) {}
 
-        try {
-          fruitElement.releasePointerCapture(e.pointerId);
-        } catch (_) {}
-
-        if (this.hasMoved) {
-          this.handlePointerDrop(e.clientX, e.clientY);
+          if (this.hasMoved) {
+            this.handlePointerDrop(e.clientX, e.clientY, this.touchDragData);
+          } else {
+            // Toque rápido sem arrastar: seleciona a fruta
+            this.selectFruit(data, fruitElement);
+          }
         }
 
         this.removeTouchClone();
         this.clearDragOverStates();
-        this.dragData = null;
-        GameState.draggedItem = null;
+        this.isPointerDragging = false;
+        setTimeout(() => {
+          if (this.touchDragData === data) this.touchDragData = null;
+          if (this.dragData === data) this.dragData = null;
+          if (GameState.draggedItem === data) GameState.draggedItem = null;
+        }, 80);
       });
 
-      fruitElement.addEventListener('pointercancel', () => {
-        this.removeTouchClone();
-        this.clearDragOverStates();
-        this.dragData = null;
-        GameState.draggedItem = null;
+      // 3. Clique simples com mouse para selecionar a fruta (Acessibilidade)
+      fruitElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.selectedFruit && this.selectedFruit.instanceId === data.instanceId) {
+          this.clearSelectedFruit();
+          UIController.setFeedbackMessage('Seleção desfeita. Arraste ou clique em uma fruta para começar.');
+        } else {
+          this.selectFruit(data, fruitElement);
+        }
       });
     },
 
@@ -414,7 +547,18 @@
 
     checkHoverTargets(x, y) {
       this.clearDragOverStates();
+
+      // Esconde temporariamente o clone para elementFromPoint enxergar o alvo
+      if (this.touchClone) {
+        this.touchClone.style.display = 'none';
+      }
+
       const elem = document.elementFromPoint(x, y);
+
+      if (this.touchClone) {
+        this.touchClone.style.display = 'block';
+      }
+
       if (!elem) return;
 
       const basketCard = elem.closest('.basket-card');
@@ -429,21 +573,33 @@
       }
     },
 
-    handlePointerDrop(x, y) {
+    handlePointerDrop(x, y, dataPayload) {
+      const payload = dataPayload || this.touchDragData || this.dragData || GameState.draggedItem;
+      if (!payload) return;
+
+      if (this.touchClone) {
+        this.touchClone.style.display = 'none';
+      }
+
       const elem = document.elementFromPoint(x, y);
+
+      if (this.touchClone) {
+        this.touchClone.style.display = 'block';
+      }
+
       if (!elem) return;
 
       const basketCard = elem.closest('.basket-card');
       if (basketCard) {
         const targetFruitId = basketCard.dataset.targetFruitId;
-        this.handleDropOnBasket(targetFruitId);
+        this.handleDropOnBasket(targetFruitId, payload);
         return;
       }
 
       const emptySlot = elem.closest('.bench-slot.empty');
       if (emptySlot) {
         const targetSlotId = emptySlot.dataset.slotId;
-        this.handleDropOnBench(targetSlotId);
+        this.handleDropOnBench(targetSlotId, payload);
       }
     },
 
@@ -452,9 +608,11 @@
     },
 
     // Ação: Fruta solta no Cesto
-    handleDropOnBasket(targetFruitId) {
-      if (!this.dragData) return;
-      const { instanceId, fruitId, source, originSlotId, originBasketId } = this.dragData;
+    handleDropOnBasket(targetFruitId, dataPayload) {
+      const payload = dataPayload || this.dragData || GameState.draggedItem || this.selectedFruit;
+      if (!payload || !targetFruitId) return;
+
+      const { instanceId, fruitId, source, originSlotId, originBasketId } = payload;
 
       if (source === 'bench') {
         // Princípio III: A vaga na bancada permanece vazia (Subtração Concreta)
@@ -463,46 +621,65 @@
           slot.isOccupied = false;
         }
 
+        if (!GameState.baskets[targetFruitId]) {
+          GameState.baskets[targetFruitId] = { targetFruitId, items: [] };
+        }
+
         // Adiciona a fruta no cesto
         GameState.baskets[targetFruitId].items.push({
           instanceId,
           fruitId,
           originSlotId
         });
+
+        const fruitName = FRUIT_CATALOG[fruitId]?.name || fruitId;
+        const basketName = FRUIT_CATALOG[targetFruitId]?.name || targetFruitId;
+        UIController.setFeedbackMessage(`Você colocou ${fruitName} no cesto de ${basketName}!`);
       } else if (source === 'basket' && originBasketId !== targetFruitId) {
         // Transferência entre cestos
         const originBasket = GameState.baskets[originBasketId];
-        const itemIdx = originBasket.items.findIndex(it => it.instanceId === instanceId);
-        if (itemIdx !== -1) {
-          const [movedItem] = originBasket.items.splice(itemIdx, 1);
-          GameState.baskets[targetFruitId].items.push(movedItem);
+        if (originBasket) {
+          const itemIdx = originBasket.items.findIndex(it => it.instanceId === instanceId);
+          if (itemIdx !== -1) {
+            const [movedItem] = originBasket.items.splice(itemIdx, 1);
+            if (!GameState.baskets[targetFruitId]) {
+              GameState.baskets[targetFruitId] = { targetFruitId, items: [] };
+            }
+            GameState.baskets[targetFruitId].items.push(movedItem);
+          }
         }
       }
 
       AudioEngine.playDrop();
+      this.clearSelectedFruit();
       UIController.renderBenchSlots();
       UIController.renderBasketContents();
       UIController.updateBenchStats();
     },
 
     // Ação: Fruta devolvida para a Bancada (Desfazer Erro / Reversibilidade)
-    handleDropOnBench(targetSlotId) {
-      if (!this.dragData) return;
-      const { instanceId, fruitId, source, originSlotId, originBasketId } = this.dragData;
+    handleDropOnBench(targetSlotId, dataPayload) {
+      const payload = dataPayload || this.dragData || GameState.draggedItem || this.selectedFruit;
+      if (!payload || !targetSlotId) return;
 
+      const { instanceId, fruitId, source, originSlotId, originBasketId } = payload;
       const targetSlot = GameState.benchSlots.find(s => s.slotId === targetSlotId);
       if (!targetSlot || targetSlot.isOccupied) return;
 
       if (source === 'basket') {
         // Remove do cesto e reocupa o slot da bancada
         const basket = GameState.baskets[originBasketId];
-        const itemIdx = basket.items.findIndex(it => it.instanceId === instanceId);
-        if (itemIdx !== -1) {
-          basket.items.splice(itemIdx, 1);
-          targetSlot.isOccupied = true;
-          targetSlot.fruitId = fruitId;
-          targetSlot.instanceId = instanceId;
+        if (basket) {
+          const itemIdx = basket.items.findIndex(it => it.instanceId === instanceId);
+          if (itemIdx !== -1) {
+            basket.items.splice(itemIdx, 1);
+            targetSlot.isOccupied = true;
+            targetSlot.fruitId = fruitId;
+            targetSlot.instanceId = instanceId;
+          }
         }
+        const fruitName = FRUIT_CATALOG[fruitId]?.name || fruitId;
+        UIController.setFeedbackMessage(`Você devolveu ${fruitName} para a bancada.`);
       } else if (source === 'bench' && originSlotId !== targetSlotId) {
         // Move para outro slot vazio na bancada
         const originSlot = GameState.benchSlots.find(s => s.slotId === originSlotId);
@@ -515,6 +692,7 @@
       }
 
       AudioEngine.playDrop();
+      this.clearSelectedFruit();
       UIController.renderBenchSlots();
       UIController.renderBasketContents();
       UIController.updateBenchStats();
@@ -571,6 +749,7 @@
     generateLevel2Questions() {
       const questions = [];
       let grandTotal = 0;
+      const basketBreakdown = [];
 
       // Perguntas de precificação por cesto
       FRUIT_IDS.forEach((fruitId) => {
@@ -579,29 +758,48 @@
         const basketTotal = count * fruit.price;
         grandTotal += basketTotal;
 
+        const pluralInfo = FRUIT_PLURALS[fruitId] || { singular: fruit.name.toLowerCase(), plural: `${fruit.name.toLowerCase()}s` };
+        const fruitNoun = count === 1 ? pluralInfo.singular : pluralInfo.plural;
+        const operationText = `${count} ${fruitNoun} × R$ ${fruit.price},00 = ?`;
+
+        basketBreakdown.push({
+          fruitId: fruitId,
+          fruitName: fruit.name,
+          image: fruit.image,
+          count: count,
+          unitPrice: fruit.price,
+          subtotal: basketTotal
+        });
+
         const options = this.generatePriceOptions(basketTotal, fruit.price);
 
         questions.push({
           id: `q-price-${fruitId}`,
           type: 'basket_price',
           fruitId: fruitId,
+          count: count,
+          fruitNoun: fruitNoun,
+          operationText: operationText,
           badgeLabel: 'Cálculo de Preço',
           prompt: `Quanto você pagará pelas frutas no cesto do ${fruit.name}? (Cada fruta custa R$ ${fruit.price},00)`,
           options: options,
-          explanation: `${count} frutas × R$ ${fruit.price},00 = R$ ${basketTotal},00.`
+          explanation: `${count} ${fruitNoun} × R$ ${fruit.price},00 = R$ ${basketTotal},00.`
         });
       });
 
       // Pergunta final consolidada do valor total de todos os cestos
+      const additionFormulaText = basketBreakdown.map(b => `R$ ${b.subtotal},00`).join(' + ');
       const totalOptions = this.generateGrandTotalOptions(grandTotal);
       questions.push({
         id: 'q-price-total',
         type: 'total_price',
         fruitId: null,
         badgeLabel: 'Valor Total da Feira',
-        prompt: 'Qual o valor total de todos os 6 cestos da feira?',
+        basketBreakdown: basketBreakdown,
+        additionFormulaText: additionFormulaText,
+        prompt: 'Qual o valor total de todos os 6 cestos da feira? Some o valor de cada cesto para descobrir!',
         options: totalOptions,
-        explanation: `A soma de todos os cestos resultou em R$ ${grandTotal},00. Excelente cálculo!`
+        explanation: `A soma de todos os cestos resultou em R$ ${grandTotal},00 (${additionFormulaText} = R$ ${grandTotal},00). Excelente cálculo!`
       });
 
       return questions;
@@ -691,12 +889,19 @@
       // Configuração de quantidades por nível
       let fruitQuantities = {};
       if (levelNumber === 1) {
-        // Nível 1: entre 1 e 6 frutas por tipo
-        FRUIT_IDS.forEach(id => {
-          fruitQuantities[id] = Math.floor(Math.random() * 3) + 2; // entre 2 e 4 frutas para boa dinâmica
-        });
+        // Nível 1: Bancada com 27 frutas preenchendo todos os 27 slots da banca do feirante (preenche os 9 espaços vazios).
+        // Frutas menos expostas na feira (Buriti, Cupuaçu, Jaca e Açaí) recebem 5 unidades cada,
+        // Manga recebe 4 e Melancia recebe 3. Todas entre 1 e 6 por espécie (FR-006).
+        fruitQuantities = {
+          buriti: 5,
+          cupuacu: 5,
+          jaca: 5,
+          acai: 5,
+          manga: 4,
+          melancia: 3
+        };
       } else {
-        // Nível 2: no mínimo 8 frutas por tipo
+        // Nível 2: no mínimo 8 frutas por tipo (48 frutas ao todo)
         FRUIT_IDS.forEach(id => {
           fruitQuantities[id] = 8; // exatamente 8 frutas por espécie
         });
@@ -742,55 +947,71 @@
       });
     },
 
-    // Validação rígida: impede avanço se houver mistura ou cesto vazio
-    validateBasketsForProgression() {
-      let hasEmptyBasket = false;
-      let hasMixedBasket = false;
-      let problematicFruit = null;
-      let problematicBasket = null;
-
-      // Remove destaques de erro anteriores
-      document.querySelectorAll('.basket-card').forEach(b => b.classList.remove('basket-error'));
-
+    // Verificação algorítmica pura da pureza dos cestos (testável sem DOM)
+    checkBasketsPurity(baskets = GameState.baskets) {
       for (let fruitId of FRUIT_IDS) {
-        const basket = GameState.baskets[fruitId];
-        const basketCard = document.querySelector(`.basket-card[data-target-fruit-id="${fruitId}"]`);
-
-        // Verifica se há pelo menos 1 fruta no cesto
-        if (basket.items.length === 0) {
-          hasEmptyBasket = true;
-          if (basketCard) basketCard.classList.add('basket-error');
-          problematicBasket = FRUIT_CATALOG[fruitId].name;
-          break;
+        const basket = baskets[fruitId];
+        if (!basket || !basket.items || basket.items.length === 0) {
+          return {
+            isValid: false,
+            errorType: 'EMPTY',
+            problematicBasketId: fruitId,
+            problematicFruitId: null
+          };
         }
-
-        // Verifica se há mistura de espécies
         const wrongFruit = basket.items.find(item => item.fruitId !== fruitId);
         if (wrongFruit) {
-          hasMixedBasket = true;
-          if (basketCard) basketCard.classList.add('basket-error');
-          problematicFruit = FRUIT_CATALOG[wrongFruit.fruitId].name;
-          problematicBasket = FRUIT_CATALOG[fruitId].name;
-          break;
+          return {
+            isValid: false,
+            errorType: 'MIXED',
+            problematicBasketId: fruitId,
+            problematicFruitId: wrongFruit.fruitId
+          };
         }
       }
+      return {
+        isValid: true,
+        errorType: null,
+        problematicBasketId: null,
+        problematicFruitId: null
+      };
+    },
 
-      if (hasEmptyBasket) {
-        AudioEngine.playError();
-        UIController.showAlert(
-          'Cesto Vazio!',
-          `Você precisa colocar pelo menos uma fruta no cesto de ${problematicBasket} antes de concluir a organização!`
-        );
-        return false;
+    // Validação rígida: impede avanço se houver mistura ou cesto vazio
+    validateBasketsForProgression() {
+      // Remove destaques de erro anteriores
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('.basket-card').forEach(b => b.classList.remove('basket-error'));
       }
 
-      if (hasMixedBasket) {
-        AudioEngine.playError();
-        UIController.showAlert(
-          'Fruta no Cesto Errado!',
-          `Atenção! Encontramos ${problematicFruit} no cesto de ${problematicBasket}. Lembre-se: é proibido misturar as espécies!`
-        );
-        return false;
+      const status = this.checkBasketsPurity(GameState.baskets);
+
+      if (!status.isValid) {
+        if (typeof document !== 'undefined') {
+          const basketCard = document.querySelector(`.basket-card[data-target-fruit-id="${status.problematicBasketId}"]`);
+          if (basketCard) basketCard.classList.add('basket-error');
+        }
+
+        const basketName = FRUIT_CATALOG[status.problematicBasketId]?.name || status.problematicBasketId;
+
+        if (status.errorType === 'EMPTY') {
+          AudioEngine.playError();
+          UIController.showAlert(
+            'Cesto Vazio!',
+            `Você precisa colocar pelo menos uma fruta no cesto de ${basketName} antes de concluir a organização!`
+          );
+          return false;
+        }
+
+        if (status.errorType === 'MIXED') {
+          const fruitName = FRUIT_CATALOG[status.problematicFruitId]?.name || status.problematicFruitId;
+          AudioEngine.playError();
+          UIController.showAlert(
+            'Fruta no Cesto Errado!',
+            `Atenção! Encontramos ${fruitName} no cesto de ${basketName}. Lembre-se: é proibido misturar as espécies!`
+          );
+          return false;
+        }
       }
 
       // Validação passou com êxito!
@@ -980,6 +1201,7 @@
     },
 
     updateLevelBadge() {
+      if (typeof document === 'undefined') return;
       const badge = document.getElementById('level-badge');
       const desc = document.getElementById('level-desc');
       const pricePill = document.getElementById('price-table-pill');
@@ -996,6 +1218,7 @@
     },
 
     updateGuidanceText() {
+      if (typeof document === 'undefined') return;
       const guidance = document.getElementById('guidance-text');
       if (GameState.currentLevel === 1) {
         guidance.textContent = 'Nível 1: Arraste cada fruta para o seu cesto de palha correspondente. Observe o espaço vazio que fica na bancada ao pegar cada fruta!';
@@ -1008,13 +1231,25 @@
     },
 
     updateBenchStats() {
+      if (typeof document === 'undefined') return;
       const remaining = GameState.benchSlots.filter(s => s.isOccupied).length;
-      document.getElementById('bench-remaining-count').textContent = remaining;
+      const el = document.getElementById('bench-remaining-count');
+      if (el) el.textContent = remaining;
+    },
+
+    setFeedbackMessage(message) {
+      if (typeof document === 'undefined') return;
+      const el = document.getElementById('feedback-message');
+      if (el) {
+        el.textContent = message;
+      }
     },
 
     // Renderiza a grade de slots da bancada (conservando o espaço vazio!)
     renderBenchSlots() {
+      if (typeof document === 'undefined') return;
       const grid = document.getElementById('bench-grid');
+      if (!grid) return;
       grid.innerHTML = '';
 
       GameState.benchSlots.forEach(slot => {
@@ -1062,7 +1297,9 @@
 
     // Renderiza os 6 cestos de palha
     renderBaskets() {
+      if (typeof document === 'undefined') return;
       const grid = document.getElementById('baskets-grid');
+      if (!grid) return;
       grid.innerHTML = '';
 
       FRUIT_IDS.forEach(fruitId => {
@@ -1094,6 +1331,7 @@
 
     // Atualiza as frutas contidas dentro de cada cesto
     renderBasketContents() {
+      if (typeof document === 'undefined') return;
       FRUIT_IDS.forEach(fruitId => {
         const basket = GameState.baskets[fruitId];
         const dropZone = document.getElementById(`drop-zone-${fruitId}`);
@@ -1154,6 +1392,7 @@
 
     // Renderiza a pergunta ativa do quiz
     renderQuizQuestion() {
+      if (typeof document === 'undefined') return;
       const modal = document.getElementById('quiz-modal');
       const question = GameState.quizQuestions[GameState.currentQuestionIndex];
       if (!question) return;
@@ -1163,6 +1402,7 @@
       const badgeType = document.getElementById('quiz-type-badge');
       const stepIndicator = document.getElementById('quiz-step-indicator');
       const promptText = document.getElementById('quiz-question-prompt');
+      const supportContainer = document.getElementById('quiz-support-container');
       const optionsContainer = document.getElementById('quiz-options-container');
       const feedbackBox = document.getElementById('quiz-feedback-box');
       const nextBtn = document.getElementById('btn-quiz-next');
@@ -1190,6 +1430,99 @@
         previewBox.innerHTML = '';
       }
 
+      // Renderiza Janela de Apoio Pedagógico conforme o tipo de pergunta
+      if (supportContainer) {
+        if (question.type === 'count') {
+          // Apoio visual de contagem: mostra o cesto com as frutas selecionadas/alocadas para o aluno contar
+          const basketItems = (GameState.baskets[question.fruitId] && GameState.baskets[question.fruitId].items) || [];
+          let fruitsHtml = '';
+          if (basketItems.length === 0) {
+            fruitsHtml = '<span class="basket-empty-hint" style="display:block;">Cesto Vazio (0 frutas)</span>';
+          } else {
+            fruitsHtml = basketItems.map((item, idx) => {
+              const itemFruit = FRUIT_CATALOG[item.fruitId] || fruit;
+              return `
+                <div class="counting-fruit-pill">
+                  <img src="${itemFruit.image}" alt="${itemFruit.name}">
+                  <span class="counting-number-badge">${idx + 1}</span>
+                </div>
+              `;
+            }).join('');
+          }
+
+          supportContainer.innerHTML = `
+            <div class="support-header">
+              <span class="support-icon">🧺</span>
+              <span>Cesto de Apoio: Conte as frutas dentro do cesto!</span>
+            </div>
+            <div class="support-basket-visual">
+              ${fruitsHtml}
+            </div>
+            <p class="support-tip">💡 Aponte o dedinho ou o mouse para contar cada fruta no cesto acima.</p>
+          `;
+          supportContainer.style.display = 'block';
+        } else if (question.type === 'basket_price') {
+          // Apoio de multiplicação: mostra a operação sem dar o resultado final
+          const count = question.count !== undefined ? question.count : (GameState.baskets[question.fruitId]?.items.length || 0);
+          const fruitNoun = question.fruitNoun || (count === 1 ? fruit.name.toLowerCase() : `${fruit.name.toLowerCase()}s`);
+          const unitPriceFormatted = `R$ ${fruit.price},00`;
+
+          supportContainer.innerHTML = `
+            <div class="support-header">
+              <span class="support-icon">✖️</span>
+              <span>Operação Matemática de Apoio (Multiplicação):</span>
+            </div>
+            <div class="support-equation-box">
+              <span class="equation-text">${count} ${fruitNoun} × ${unitPriceFormatted} = </span>
+              <span class="equation-unknown">?</span>
+            </div>
+            <p class="support-tip">💡 Multiplique a quantidade de frutas pelo preço de cada uma para encontrar o valor do cesto!</p>
+          `;
+          supportContainer.style.display = 'block';
+        } else if (question.type === 'total_price') {
+          // Apoio de adição: mostra o valor de cada cesto por fruta e pede para o aluno somar
+          const breakdown = question.basketBreakdown || FRUIT_IDS.map(id => {
+            const f = FRUIT_CATALOG[id];
+            const c = GameState.baskets[id]?.items.length || 0;
+            return {
+              fruitId: id,
+              fruitName: f.name,
+              image: f.image,
+              count: c,
+              subtotal: c * f.price
+            };
+          });
+
+          const formulaText = question.additionFormulaText || breakdown.map(b => `R$ ${b.subtotal},00`).join(' + ');
+
+          supportContainer.innerHTML = `
+            <div class="support-header">
+              <span class="support-icon">➕</span>
+              <span>Operação Matemática de Apoio (Adição dos Cestos):</span>
+            </div>
+            <div class="support-addition-grid">
+              ${breakdown.map(b => `
+                <div class="addition-item-pill">
+                  <img src="${b.image}" alt="${b.fruitName}">
+                  <span>${b.fruitName}:</span>
+                  <strong>R$ ${b.subtotal},00</strong>
+                </div>
+              `).join('')}
+            </div>
+            <div class="support-equation-box addition-equation-box">
+              <span class="equation-text">${formulaText} = </span>
+              <span class="equation-unknown">?</span>
+            </div>
+            <p class="support-tip">💡 Some os valores de cada cesto de frutas para obter o valor total da feira!</p>
+          `;
+          supportContainer.style.display = 'block';
+        } else {
+          // Para classificação de tamanho (size_class), oculta o container de apoio
+          supportContainer.style.display = 'none';
+          supportContainer.innerHTML = '';
+        }
+      }
+
       // Renderiza exatamente 3 alternativas padronizadas
       question.options.forEach(option => {
         const btn = document.createElement('button');
@@ -1210,6 +1543,7 @@
     },
 
     showAlert(title, message) {
+      if (typeof document === 'undefined') return;
       const modal = document.getElementById('alert-modal');
       document.getElementById('alert-title').textContent = title;
       document.getElementById('alert-message').textContent = message;
@@ -1230,6 +1564,7 @@
     module.exports = {
       FRUIT_CATALOG,
       FRUIT_IDS,
+      FRUIT_PLURALS,
       GameState,
       AudioEngine,
       SpeechManager,
